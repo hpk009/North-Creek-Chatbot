@@ -1,28 +1,27 @@
-import { AlertCircle, ArrowLeft, BookOpen, Check, ExternalLink, LoaderCircle, RotateCcw, Send, Sparkles, WifiOff } from 'lucide-react';
+import { AlertCircle, ArrowLeft, LoaderCircle, RotateCcw, Send, Sparkles, WifiOff } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, useLocation } from 'wouter';
 import { ChatIcon } from '@/components/school-shell';
 
-type Source = { title: string; reference?: string; url?: string };
-type ChatMessage = { id: string; role: 'assistant' | 'user'; content: string; sources?: Source[]; demo?: boolean; error?: boolean };
+type ChatMessage = { id: string; role: 'assistant' | 'user'; content: string; demo?: boolean; error?: boolean };
 
 const suggestions = ['When is the next school holiday?', 'How do I report an absence?', 'What clubs run after school?', 'Where can I find the uniform list?'];
 
-const demoAnswer = (question: string): { answer: string; sources: Source[] } => {
+const demoAnswer = (question: string): string => {
   const lower = question.toLowerCase();
   if (lower.includes('holiday') || lower.includes('term')) {
-    return { answer: 'The next school holiday begins on Monday 21 October. The autumn term ends on Friday 20 December at 12:30pm. Please check the term dates page for inset days and the full year calendar.', sources: [{ title: 'North Creek High School term dates', reference: 'School calendar · page 2' }] };
+    return 'The next school holiday begins on Monday 21 October. The autumn term ends on Friday 20 December at 12:30pm. Please check the term dates page for inset days and the full year calendar.';
   }
   if (lower.includes('absence') || lower.includes('absent') || lower.includes('sick')) {
-    return { answer: 'Please report an absence before 9:00am on the first day by calling the school office or using the absence form in the parent portal. Include your child’s name, class, and a brief reason. If the absence continues, please update the school each morning.', sources: [{ title: 'Attendance and absence guide', reference: 'Family handbook · page 8' }] };
+    return 'Please report an absence before 9:00am on the first day by calling the school office or using the absence form in the parent portal. Include your child’s name, class, and a brief reason. If the absence continues, please update the school each morning.';
   }
   if (lower.includes('club') || lower.includes('after school')) {
-    return { answer: 'After-school clubs change each term. The current list includes art studio, chess, coding, choir, football, and gardening. Places are booked through the activities page in the parent portal.', sources: [{ title: 'Clubs and activities · Autumn term', reference: 'Activities guide · page 1' }] };
+    return 'After-school clubs change each term. The current list includes art studio, chess, coding, choir, football, and gardening. Places are booked through the activities page in the parent portal.';
   }
   if (lower.includes('uniform')) {
-    return { answer: 'The uniform list is in the family handbook and on the school website under Families → Uniform. The school shop is open on Tuesday and Thursday afternoons during term time.', sources: [{ title: 'Family handbook', reference: 'Uniform and equipment · page 12' }] };
+    return 'The uniform list is in the family handbook and on the school website under Families → Uniform. The school shop is open on Tuesday and Thursday afternoons during term time.';
   }
-  return { answer: 'I can help you find information about school dates, attendance, clubs, uniform, lunches, trips, and how to contact the right team. Try asking a little more specifically, or contact the North Creek High School office if you need personal help.', sources: [{ title: 'North Creek High School information guide', reference: 'Welcome section · page 3' }] };
+  return 'I can help you find information about school dates, attendance, clubs, uniform, lunches, trips, and how to contact the right team. Try asking a little more specifically, or contact the North Creek High School office if you need personal help.';
 };
 
 function createSessionId() {
@@ -34,7 +33,7 @@ export default function Chat() {
   const [location] = useLocation();
   const [sessionId, setSessionId] = useState(createSessionId);
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { id: 'welcome', role: 'assistant', content: 'Hello. I’m The Bell, North Creek High School’s guide. What would you like to find out?', sources: [{ title: 'About The Bell', reference: 'School information guide' }] },
+    { id: 'welcome', role: 'assistant', content: 'Hello. I’m The Bell, North Creek High School’s AI assistant. What would you like to find out?' },
   ]);
   const [input, setInput] = useState('');
   const [pending, setPending] = useState(false);
@@ -61,7 +60,7 @@ export default function Chat() {
 
   const resetChat = () => {
     setSessionId(createSessionId());
-    setMessages([{ id: `welcome-${Date.now()}`, role: 'assistant', content: 'Fresh page, fresh question. What can I help you find?', sources: [{ title: 'About The Bell', reference: 'School information guide' }] }]);
+    setMessages([{ id: `welcome-${Date.now()}`, role: 'assistant', content: 'Fresh page, fresh question. What can I help you find?' }]);
     setInput('');
     setError(null);
   };
@@ -79,7 +78,7 @@ export default function Chat() {
       if (!webhookUrl) {
         await new Promise((resolve) => setTimeout(resolve, 850));
         const response = demoAnswer(question);
-        setMessages((current) => [...current, { id: `answer-${Date.now()}`, role: 'assistant', content: response.answer, sources: response.sources, demo: true }]);
+        setMessages((current) => [...current, { id: `answer-${Date.now()}`, role: 'assistant', content: response, demo: true }]);
       } else {
         const result = await fetch(webhookUrl, {
           method: 'POST',
@@ -93,11 +92,7 @@ export default function Chat() {
         const answer = [record.answer, record.output, record.response, record.text, record.message]
           .find((value): value is string => typeof value === 'string' && value.trim().length > 0);
         if (!answer) throw new Error('The response did not include an answer.');
-        const rawSources = record.sources;
-        const sources: Source[] = Array.isArray(rawSources)
-          ? rawSources.map((source) => typeof source === 'string' ? { title: source } : source as Source)
-          : [];
-        setMessages((current) => [...current, { id: `answer-${Date.now()}`, role: 'assistant', content: answer, sources }]);
+        setMessages((current) => [...current, { id: `answer-${Date.now()}`, role: 'assistant', content: answer }]);
       }
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : 'Something went wrong while looking that up.';
@@ -115,7 +110,7 @@ export default function Chat() {
           <Link href="/" data-testid="link-chat-back" className="mb-5 inline-flex items-center gap-2 text-sm font-semibold text-[hsl(var(--muted-foreground))] transition-colors hover:text-[hsl(var(--foreground))]"><ArrowLeft size={16} /> Back to home</Link>
           <div className="hidden rounded-[24px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 lg:block">
             <div className="flex items-center gap-3"><span className="grid size-10 place-items-center rounded-2xl bg-[hsl(var(--accent)/.15)] text-[hsl(var(--accent-foreground))]"><Sparkles size={19} /></span><div><p className="font-bold">Ask The Bell</p><p className="font-mono-ui text-[9px] uppercase tracking-wider text-[hsl(var(--muted-foreground))]">North Creek guide</p></div></div>
-            <div className="mt-6 border-t border-[hsl(var(--border))] pt-5"><p className="text-xs leading-5 text-[hsl(var(--muted-foreground))]">Try a question about the school day. Answers are based on school-provided information.</p></div>
+            <div className="mt-6 border-t border-[hsl(var(--border))] pt-5"><p className="text-xs leading-5 text-[hsl(var(--muted-foreground))]">Ask about the school day, get a quick answer, or use it as a starting point for finding the right person.</p></div>
           </div>
         </div>
         <button type="button" onClick={resetChat} data-testid="button-start-over" className="inline-flex items-center gap-2 rounded-full border border-[hsl(var(--border))] px-3.5 py-2 text-xs font-bold text-[hsl(var(--muted-foreground))] transition-colors hover:border-[hsl(var(--accent))] hover:text-[hsl(var(--foreground))]"><RotateCcw size={14} /> Start over</button>
@@ -137,7 +132,6 @@ export default function Chat() {
                     <span data-testid={`text-message-${message.id}`}>{message.content}</span>
                   </div>
                   {message.role === 'assistant' && message.demo && <span className="mt-2 font-mono-ui text-[9px] uppercase tracking-[.12em] text-[hsl(var(--accent-foreground))]" data-testid={`status-demo-${message.id}`}>Preview response · not live school data</span>}
-                  {message.sources && message.sources.length > 0 && <div className="mt-3 w-full space-y-2" data-testid={`sources-${message.id}`}><p className="flex items-center gap-1.5 font-mono-ui text-[9px] font-bold uppercase tracking-[.14em] text-[hsl(var(--muted-foreground))]"><BookOpen size={12} /> Sources</p>{message.sources.map((source, index) => <a key={`${source.title}-${index}`} href={source.url || '#source'} onClick={(event) => { if (!source.url) event.preventDefault(); }} data-testid={`source-${message.id}-${index}`} className="flex items-center gap-3 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card)/.7)] px-3 py-2 text-xs transition-colors hover:border-[hsl(var(--accent)/.6)]"><span className="grid size-5 place-items-center rounded-full bg-[hsl(var(--secondary)/.6)] text-[hsl(var(--secondary-foreground))]"><Check size={11} strokeWidth={3} /></span><span className="min-w-0 flex-1"><span className="block truncate font-semibold">{source.title}</span>{source.reference && <span className="block truncate text-[hsl(var(--muted-foreground))]">{source.reference}</span>}</span>{source.url && <ExternalLink size={13} className="shrink-0 text-[hsl(var(--muted-foreground))]" />}</a>)}</div>}
                 </div>
               </div>
             ))}
@@ -153,7 +147,7 @@ export default function Chat() {
             <textarea value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void sendQuestion(); } }} placeholder="Ask about school life…" rows={1} aria-label="Your question" data-testid="input-question" className="max-h-28 min-h-11 flex-1 resize-none bg-transparent px-3 py-3 text-sm outline-none placeholder:text-[hsl(var(--muted-foreground))]" />
             <button type="submit" disabled={!input.trim() || pending} data-testid="button-send-question" className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40">{pending ? <LoaderCircle size={18} className="animate-spin" /> : <Send size={17} />}</button>
           </form>
-          <p className="mx-auto mt-3 max-w-2xl text-center font-mono-ui text-[9px] uppercase tracking-[.11em] text-[hsl(var(--muted-foreground))]" data-testid="text-chat-disclaimer">{isDemo ? 'Preview mode · answers are examples, not live school data' : 'Grounded in school-provided information · check the source for details'}</p>
+          <p className="mx-auto mt-3 max-w-2xl text-center font-mono-ui text-[9px] uppercase tracking-[.11em] text-[hsl(var(--muted-foreground))]" data-testid="text-chat-disclaimer">{isDemo ? 'Preview mode · answers are examples, not live school guidance' : 'AI-generated guidance · confirm important details with the school office'}</p>
         </div>
       </section>
     </div>

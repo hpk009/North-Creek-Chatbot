@@ -80,7 +80,7 @@ export function SchoolShell({ children }: { children: ReactNode }) {
           </div>
           <div className="flex items-center gap-5">
             <Link href="/about" data-testid="link-footer-about" className="hover:text-[hsl(var(--foreground))]">About The Bell</Link>
-            <span className="flex items-center gap-1.5 font-mono-ui text-[10px] uppercase tracking-wider"><CircleHelp size={13} /> School information only</span>
+            <span className="flex items-center gap-1.5 font-mono-ui text-[10px] uppercase tracking-wider"><CircleHelp size={13} /> AI assistant for North Creek</span>
           </div>
         </div>
       </footer>

@@ -4,7 +4,7 @@ import { Link } from 'wouter';
 const capabilities = [
   { icon: CalendarDays, eyebrow: 'The practical stuff', title: 'Dates, times, and what is happening', text: 'Find the next break, sports fixture, parent evening, or collection time without digging through a PDF.' },
   { icon: GraduationCap, eyebrow: 'The school day', title: 'Help getting oriented', text: 'Ask about clubs, uniform, lunch, the library, or who to contact when a question needs a human.' },
-  { icon: HeartHandshake, eyebrow: 'The human bit', title: 'A calm first stop', text: 'The Bell gives a clear starting point, with the school source behind every grounded answer.' },
+  { icon: HeartHandshake, eyebrow: 'The human bit', title: 'A calm first stop', text: 'The Bell gives a clear starting point and helps you decide what to do next.' },
 ];
 
 const questions = ['When is the next school holiday?', 'How do I report an absence?', 'What clubs run after school?'];
@@ -49,7 +49,7 @@ export default function Home() {
               <div className="space-y-4 py-6">
                 <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-[hsl(var(--muted))] p-4 text-sm leading-6 text-[hsl(var(--foreground))]">Hi. What can I help you find today?</div>
                 <div className="ml-auto max-w-[82%] rounded-2xl rounded-tr-sm bg-[hsl(var(--primary))] p-4 text-sm leading-6 text-[hsl(var(--primary-foreground))]">When does the autumn term finish?</div>
-                <div className="max-w-[90%] rounded-2xl rounded-tl-sm border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 text-sm leading-6"><span className="font-bold">The autumn term finishes on Friday 20 December.</span><span className="mt-2 block text-xs text-[hsl(var(--muted-foreground))]">Source · North Creek term dates</span></div>
+                <div className="max-w-[90%] rounded-2xl rounded-tl-sm border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 text-sm leading-6"><span className="font-bold">The autumn term finishes on Friday 20 December.</span><span className="mt-2 block text-xs text-[hsl(var(--muted-foreground))]">A quick answer from The Bell</span></div>
               </div>
               <div className="flex items-center gap-2 rounded-2xl bg-[hsl(var(--muted)/.7)] px-4 py-3 text-sm text-[hsl(var(--muted-foreground))]"><span>Ask anything about school…</span><ArrowRight size={16} className="ml-auto" /></div>
             </div>
@@ -95,7 +95,7 @@ export default function Home() {
       <section className="mx-auto max-w-7xl px-5 pb-24 sm:px-8 lg:px-12">
         <div className="relative overflow-hidden rounded-[32px] bg-[hsl(var(--secondary))] px-6 py-12 sm:px-12 sm:py-16">
           <div className="absolute -right-10 -top-16 size-56 rounded-full border-[20px] border-[hsl(var(--secondary-foreground)/.08)]" />
-          <div className="relative max-w-xl"><ShieldCheck size={28} className="text-[hsl(var(--secondary-foreground))]" /><h2 className="mt-6 font-display text-4xl leading-tight text-[hsl(var(--secondary-foreground))]">A helpful answer should show its work.</h2><p className="mt-5 max-w-md text-sm leading-6 text-[hsl(var(--secondary-foreground)/.75)]">The Bell only answers from school-provided information. Every response includes the source it used, so you can follow up with confidence.</p><Link href="/chat" data-testid="link-grounded-chat" className="mt-8 inline-flex items-center gap-2 rounded-full bg-[hsl(var(--secondary-foreground))] px-5 py-3 text-sm font-bold text-[hsl(var(--secondary))] transition-transform hover:-translate-y-0.5">Try a question <ArrowRight size={16} /></Link></div>
+          <div className="relative max-w-xl"><ShieldCheck size={28} className="text-[hsl(var(--secondary-foreground))]" /><h2 className="mt-6 font-display text-4xl leading-tight text-[hsl(var(--secondary-foreground))]">A quick answer, not another maze.</h2><p className="mt-5 max-w-md text-sm leading-6 text-[hsl(var(--secondary-foreground)/.75)]">The Bell is built for everyday school questions. It can help you get oriented, then point you toward the school office when something needs a human answer.</p><Link href="/chat" data-testid="link-grounded-chat" className="mt-8 inline-flex items-center gap-2 rounded-full bg-[hsl(var(--secondary-foreground))] px-5 py-3 text-sm font-bold text-[hsl(var(--secondary))] transition-transform hover:-translate-y-0.5">Try a question <ArrowRight size={16} /></Link></div>
         </div>
       </section>
 
