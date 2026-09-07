@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "School AI Chatbot"
+description = "A welcoming school website where students and families can ask questions and get helpful, grounded answers from an existing n8n RAG assistant."
+version = "1.0.0"
+id = "artifacts/school-ai-chatbot"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21290
+
+[services.development]
+run = "pnpm --filter @workspace/school-ai-chatbot run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/school-ai-chatbot", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/school-ai-chatbot/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21290"
+BASE_PATH = "/"
