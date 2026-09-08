@@ -2,12 +2,12 @@ import { ArrowRight, CalendarDays, ChevronRight, Clock3, GraduationCap, HeartHan
 import { Link } from 'wouter';
 
 const capabilities = [
-  { icon: CalendarDays, eyebrow: 'The practical stuff', title: 'Dates, times, and what is happening', text: 'Find the next break, sports fixture, parent evening, or collection time without digging through a PDF.' },
-  { icon: GraduationCap, eyebrow: 'The school day', title: 'Help getting oriented', text: 'Ask about clubs, uniform, lunch, the library, or who to contact when a question needs a human.' },
-  { icon: HeartHandshake, eyebrow: 'The human bit', title: 'A calm first stop', text: 'The Bell gives a clear starting point and helps you decide what to do next.' },
+  { icon: CalendarDays, eyebrow: 'The practical stuff', title: 'Dates, times, and what is happening', text: 'Find school calendar events, schedules, early releases, and other North Creek details in one place.' },
+  { icon: GraduationCap, eyebrow: 'The school day', title: 'Help getting oriented', text: 'Ask about academics, activities, athletics, attendance, transportation, or the school directory.' },
+  { icon: HeartHandshake, eyebrow: 'The human bit', title: 'A calm first stop', text: 'The Bell gives a clear starting point and helps you decide when to contact the school office.' },
 ];
 
-const questions = ['When is the next school holiday?', 'How do I report an absence?', 'What clubs run after school?'];
+const questions = ['What are North Creek High School office hours?', 'When is the next school calendar event?', 'How do I report an absence at North Creek High School?'];
 
 export default function Home() {
   return (
@@ -42,14 +42,14 @@ export default function Home() {
               <div className="flex items-center justify-between border-b border-[hsl(var(--border))] pb-5">
                 <div className="flex items-center gap-3">
                   <span className="grid size-10 place-items-center rounded-2xl bg-[hsl(var(--accent)/.16)] text-[hsl(var(--accent-foreground))]"><Sparkles size={19} /></span>
-                  <div><p className="font-bold">Ask The Bell</p><p className="font-mono-ui text-[9px] uppercase tracking-[.13em] text-[hsl(var(--muted-foreground))]">North Creek guide</p></div>
+                   <div><p className="font-bold">Ask The Bell</p><p className="font-mono-ui text-[9px] uppercase tracking-[.13em] text-[hsl(var(--muted-foreground))]">Jaguar guide</p></div>
                 </div>
                 <span className="font-mono-ui text-[10px] text-[hsl(var(--secondary-foreground))]">ONLINE</span>
               </div>
               <div className="space-y-4 py-6">
                 <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-[hsl(var(--muted))] p-4 text-sm leading-6 text-[hsl(var(--foreground))]">Hi. What can I help you find today?</div>
-                <div className="ml-auto max-w-[82%] rounded-2xl rounded-tr-sm bg-[hsl(var(--primary))] p-4 text-sm leading-6 text-[hsl(var(--primary-foreground))]">When does the autumn term finish?</div>
-                <div className="max-w-[90%] rounded-2xl rounded-tl-sm border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 text-sm leading-6"><span className="font-bold">The autumn term finishes on Friday 20 December.</span><span className="mt-2 block text-xs text-[hsl(var(--muted-foreground))]">A quick answer from The Bell</span></div>
+                 <div className="ml-auto max-w-[82%] rounded-2xl rounded-tr-sm bg-[hsl(var(--primary))] p-4 text-sm leading-6 text-[hsl(var(--primary-foreground))]">What are the North Creek High School office hours?</div>
+                 <div className="max-w-[90%] rounded-2xl rounded-tl-sm border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 text-sm leading-6"><span className="font-bold">The main office is open daily from 8:15 a.m. to 3:15 p.m.; Wednesday early release is at 1:45 p.m.</span><span className="mt-2 block text-xs text-[hsl(var(--muted-foreground))]">From the North Creek High School website</span></div>
               </div>
               <div className="flex items-center gap-2 rounded-2xl bg-[hsl(var(--muted)/.7)] px-4 py-3 text-sm text-[hsl(var(--muted-foreground))]"><span>Ask anything about school…</span><ArrowRight size={16} className="ml-auto" /></div>
             </div>
@@ -70,7 +70,7 @@ export default function Home() {
           <div className="grid gap-8 py-12 sm:grid-cols-3 lg:gap-10 lg:py-16 lg:pl-16">
             <div><p className="font-display text-4xl text-[hsl(var(--accent))]">01</p><p className="mt-4 text-sm leading-6 text-[hsl(var(--primary-foreground)/.72)]">Ask in your own words.</p></div>
             <div><p className="font-display text-4xl text-[hsl(var(--accent))]">02</p><p className="mt-4 text-sm leading-6 text-[hsl(var(--primary-foreground)/.72)]">Get a clear answer, not a search result.</p></div>
-            <div><p className="font-display text-4xl text-[hsl(var(--accent))]">03</p><p className="mt-4 text-sm leading-6 text-[hsl(var(--primary-foreground)/.72)]">See where the answer came from.</p></div>
+             <div><p className="font-display text-4xl text-[hsl(var(--accent))]">03</p><p className="mt-4 text-sm leading-6 text-[hsl(var(--primary-foreground)/.72)]">Know when to ask school staff.</p></div>
           </div>
         </div>
       </section>

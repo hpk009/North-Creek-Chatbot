@@ -1,28 +1,11 @@
-import { AlertCircle, ArrowLeft, LoaderCircle, RotateCcw, Send, Sparkles, WifiOff } from 'lucide-react';
+import { AlertCircle, ArrowLeft, LoaderCircle, RotateCcw, Send, Sparkles } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, useLocation } from 'wouter';
 import { ChatIcon } from '@/components/school-shell';
 
-type ChatMessage = { id: string; role: 'assistant' | 'user'; content: string; demo?: boolean; error?: boolean };
+type ChatMessage = { id: string; role: 'assistant' | 'user'; content: string; error?: boolean };
 
-const suggestions = ['When is the next school holiday?', 'How do I report an absence?', 'What clubs run after school?', 'Where can I find the uniform list?'];
-
-const demoAnswer = (question: string): string => {
-  const lower = question.toLowerCase();
-  if (lower.includes('holiday') || lower.includes('term')) {
-    return 'The next school holiday begins on Monday 21 October. The autumn term ends on Friday 20 December at 12:30pm. Please check the term dates page for inset days and the full year calendar.';
-  }
-  if (lower.includes('absence') || lower.includes('absent') || lower.includes('sick')) {
-    return 'Please report an absence before 9:00am on the first day by calling the school office or using the absence form in the parent portal. Include your child’s name, class, and a brief reason. If the absence continues, please update the school each morning.';
-  }
-  if (lower.includes('club') || lower.includes('after school')) {
-    return 'After-school clubs change each term. The current list includes art studio, chess, coding, choir, football, and gardening. Places are booked through the activities page in the parent portal.';
-  }
-  if (lower.includes('uniform')) {
-    return 'The uniform list is in the family handbook and on the school website under Families → Uniform. The school shop is open on Tuesday and Thursday afternoons during term time.';
-  }
-  return 'I can help you find information about school dates, attendance, clubs, uniform, lunches, trips, and how to contact the right team. Try asking a little more specifically, or contact the North Creek High School office if you need personal help.';
-};
+const suggestions = ['What are North Creek High School office hours?', 'How do I report an absence?', 'When is the next school calendar event?', 'What schedules does North Creek High School follow?'];
 
 function createSessionId() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
@@ -40,11 +23,8 @@ export default function Chat() {
   const [error, setError] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const initializedQuery = useRef(false);
-  const webhookId = '3c8760de-d90a-4f58-b531-9f60adaefc2e';
-  const configuredWebhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL as string | undefined;
-  const n8nBaseUrl = import.meta.env.VITE_N8N_BASE_URL as string | undefined;
-  const webhookUrl = configuredWebhookUrl || (n8nBaseUrl ? `${n8nBaseUrl.replace(/\/$/, '')}/webhook/${webhookId}` : undefined);
-  const isDemo = !webhookUrl;
+  const configuredApiUrl = import.meta.env.VITE_NORTH_CREEK_API_URL as string | undefined;
+  const apiUrl = `${(configuredApiUrl || '/api').replace(/\/$/, '')}/north-creek/chat`;
   const questionFromUrl = useMemo(() => new URLSearchParams(location.split('?')[1] || '').get('question') || '', [location]);
 
   useEffect(() => {
@@ -75,25 +55,16 @@ export default function Chat() {
     setMessages((current) => [...current, userMessage]);
     setPending(true);
     try {
-      if (!webhookUrl) {
-        await new Promise((resolve) => setTimeout(resolve, 850));
-        const response = demoAnswer(question);
-        setMessages((current) => [...current, { id: `answer-${Date.now()}`, role: 'assistant', content: response, demo: true }]);
-      } else {
-        const result = await fetch(webhookUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'sendMessage', chatInput: question, sessionId }),
-        });
-        if (!result.ok) throw new Error('The school guide could not be reached right now.');
-        const rawPayload = await result.json() as unknown;
-        const payload = Array.isArray(rawPayload) ? rawPayload[0] : rawPayload;
-        const record = payload && typeof payload === 'object' ? payload as Record<string, unknown> : {};
-        const answer = [record.answer, record.output, record.response, record.text, record.message]
-          .find((value): value is string => typeof value === 'string' && value.trim().length > 0);
-        if (!answer) throw new Error('The response did not include an answer.');
-        setMessages((current) => [...current, { id: `answer-${Date.now()}`, role: 'assistant', content: answer }]);
-      }
+      const result = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question, sessionId }),
+      });
+      if (!result.ok) throw new Error('The North Creek website index could not be reached right now.');
+      const payload = await result.json() as { answer?: unknown };
+      const answer = payload.answer;
+      if (typeof answer !== 'string' || !answer.trim()) throw new Error('The response did not include an answer.');
+      setMessages((current) => [...current, { id: `answer-${Date.now()}`, role: 'assistant', content: answer }]);
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : 'Something went wrong while looking that up.';
       setError(message);
@@ -109,7 +80,7 @@ export default function Chat() {
         <div>
           <Link href="/" data-testid="link-chat-back" className="mb-5 inline-flex items-center gap-2 text-sm font-semibold text-[hsl(var(--muted-foreground))] transition-colors hover:text-[hsl(var(--foreground))]"><ArrowLeft size={16} /> Back to home</Link>
           <div className="hidden rounded-[24px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 lg:block">
-            <div className="flex items-center gap-3"><span className="grid size-10 place-items-center rounded-2xl bg-[hsl(var(--accent)/.15)] text-[hsl(var(--accent-foreground))]"><Sparkles size={19} /></span><div><p className="font-bold">Ask The Bell</p><p className="font-mono-ui text-[9px] uppercase tracking-wider text-[hsl(var(--muted-foreground))]">North Creek guide</p></div></div>
+             <div className="flex items-center gap-3"><span className="grid size-10 place-items-center rounded-2xl bg-[hsl(var(--accent)/.15)] text-[hsl(var(--accent-foreground))]"><Sparkles size={19} /></span><div><p className="font-bold">Ask The Bell</p><p className="font-mono-ui text-[9px] uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Jaguar guide</p></div></div>
             <div className="mt-6 border-t border-[hsl(var(--border))] pt-5"><p className="text-xs leading-5 text-[hsl(var(--muted-foreground))]">Ask about the school day, get a quick answer, or use it as a starting point for finding the right person.</p></div>
           </div>
         </div>
@@ -119,7 +90,7 @@ export default function Chat() {
       <section className="flex min-h-[650px] min-w-0 flex-1 flex-col overflow-hidden rounded-[28px] border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-[0_20px_70px_hsl(var(--primary)/.07)]" aria-label="Conversation with The Bell">
         <div className="flex items-center justify-between border-b border-[hsl(var(--border))] px-5 py-4 sm:px-7">
           <div className="flex items-center gap-3"><span className="relative grid size-10 place-items-center rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"><ChatIcon /><span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full border-2 border-[hsl(var(--card))] bg-[hsl(var(--secondary-foreground))]" /></span><div><h1 className="font-bold" data-testid="text-chat-title">The Bell</h1><p className="font-mono-ui text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">North Creek High School</p></div></div>
-          <div className={`flex items-center gap-2 rounded-full px-3 py-1.5 font-mono-ui text-[9px] font-bold uppercase tracking-wider ${isDemo ? 'bg-[hsl(var(--accent)/.14)] text-[hsl(var(--accent-foreground))]' : 'bg-[hsl(var(--secondary)/.55)] text-[hsl(var(--secondary-foreground))]'}`} data-testid="status-chat-mode">{isDemo ? <><WifiOff size={12} /> Preview mode</> : <><span className="size-1.5 rounded-full bg-current" /> Connected</>}</div>
+          <div className="flex items-center gap-2 rounded-full bg-[hsl(var(--secondary)/.55)] px-3 py-1.5 font-mono-ui text-[9px] font-bold uppercase tracking-wider text-[hsl(var(--secondary-foreground))]" data-testid="status-chat-mode"><span className="size-1.5 rounded-full bg-current" /> Website index</div>
         </div>
 
         <div className="soft-grid flex-1 overflow-y-auto px-4 py-6 sm:px-8 sm:py-8">
@@ -131,7 +102,6 @@ export default function Chat() {
                     {message.error && <AlertCircle size={16} className="mb-2 text-[hsl(var(--destructive))]" />}
                     <span data-testid={`text-message-${message.id}`}>{message.content}</span>
                   </div>
-                  {message.role === 'assistant' && message.demo && <span className="mt-2 font-mono-ui text-[9px] uppercase tracking-[.12em] text-[hsl(var(--accent-foreground))]" data-testid={`status-demo-${message.id}`}>Preview response · not live school data</span>}
                 </div>
               </div>
             ))}
@@ -147,7 +117,7 @@ export default function Chat() {
             <textarea value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void sendQuestion(); } }} placeholder="Ask about school life…" rows={1} aria-label="Your question" data-testid="input-question" className="max-h-28 min-h-11 flex-1 resize-none bg-transparent px-3 py-3 text-sm outline-none placeholder:text-[hsl(var(--muted-foreground))]" />
             <button type="submit" disabled={!input.trim() || pending} data-testid="button-send-question" className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40">{pending ? <LoaderCircle size={18} className="animate-spin" /> : <Send size={17} />}</button>
           </form>
-          <p className="mx-auto mt-3 max-w-2xl text-center font-mono-ui text-[9px] uppercase tracking-[.11em] text-[hsl(var(--muted-foreground))]" data-testid="text-chat-disclaimer">{isDemo ? 'Preview mode · answers are examples, not live school guidance' : 'AI-generated guidance · confirm important details with the school office'}</p>
+           <p className="mx-auto mt-3 max-w-2xl text-center font-mono-ui text-[9px] uppercase tracking-[.11em] text-[hsl(var(--muted-foreground))]" data-testid="text-chat-disclaimer">Answers are limited to the official North Creek High School website</p>
         </div>
       </section>
     </div>

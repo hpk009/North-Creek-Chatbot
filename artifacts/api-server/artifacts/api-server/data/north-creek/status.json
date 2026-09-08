@@ -1,0 +1,11 @@
+{
+  "state": "ready",
+  "last_started_at": "2026-09-08T00:12:34.947Z",
+  "last_completed_at": "2026-09-08T00:15:11.701Z",
+  "page_count": 30,
+  "event_count": 16,
+  "feed_url": null,
+  "feed_confirmed": false,
+  "crawl_delay_seconds": 5,
+  "error": null
+}
