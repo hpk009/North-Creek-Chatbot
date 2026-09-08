@@ -160,16 +160,33 @@ function decodeHtml(value: string): string {
     .replace(/&(?:amp|nbsp|quot|apos|#39|lt|gt);/g, (entity) => entities[entity] ?? entity);
 }
 
+function extractContentHtml(html: string): string {
+  const main = html.match(/<main\b[^>]*\bid=["']fsPageContent["'][^>]*>([\s\S]*?)<\/main>/i)?.[1];
+  if (main) return main;
+  const article = html.match(/<article\b[^>]*>([\s\S]*?)<\/article>/i)?.[1];
+  if (article) return article;
+  const genericMain = html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i)?.[1];
+  return genericMain || html;
+}
+
 function htmlToText(html: string): string {
   return decodeHtml(
-    html
+    extractContentHtml(html)
       .replace(/<!--[\s\S]*?-->/g, " ")
       .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
       .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
       .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi, " ")
       .replace(/<svg\b[^>]*>[\s\S]*?<\/svg>/gi, " ")
+      .replace(/<br\b[^>]*>/gi, "\n")
+      .replace(/<\/(?:p|div|section|article|header|footer|li|h[1-6]|tr|table|dt|dd)>/gi, "\n")
       .replace(/<[^>]+>/g, " ")
-      .replace(/\s+/g, " ")
+      .replace(/[ \t]+/g, " ")
+      .replace(/[ \t]*\n[ \t]*/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .join("\n")
       .trim(),
   );
 }
@@ -556,48 +573,95 @@ function isAcademicDishonestyQuestion(question: string): boolean {
 }
 
 function isNorthCreekScopeQuestion(question: string): boolean {
-  return /\b(north creek|school|student|family|staff|office|attendance|absen|class|course|academic|calendar|event|club|activity|athletic|counsel|lunch|bus|schedule|hours|contact|directory|principal|jaguar)\b/i.test(question);
+  return /\b(north creek|school|student|family|staff|office|attendance|absen|class|course|academic|calendar|event|club|activity|athletic|counsel|lunch|bus|schedule|hours|contact|directory|principal|jaguar|period|time|monday|tuesday|wednesday|thursday|friday)\b/i.test(question);
 }
 
 function questionTokens(question: string): string[] {
-  return [...new Set(question.toLowerCase().match(/[a-z0-9]{3,}/g) || [])]
-    .filter((token) => !new Set(["what", "when", "where", "which", "does", "have", "with", "from", "about", "there", "this", "that", "north", "creek"]).has(token));
+  const normalized = question.toLowerCase().replace(/\b(\d+)(?:st|nd|rd|th)\b/g, "$1");
+  return [...new Set(normalized.match(/\d+|[a-z]{3,}/g) || [])]
+    .filter((token) => !new Set(["what", "when", "where", "which", "does", "have", "with", "from", "about", "there", "this", "that", "north", "creek", "your", "are", "the", "for"]).has(token));
 }
 
 function searchPages(pages: NorthCreekPage[], question: string): Array<{ page: NorthCreekPage; score: number }> {
   const tokens = questionTokens(question);
   return pages.map((page) => {
     const haystack = `${page.title} ${page.section} ${page.content}`.toLowerCase();
-    let score = tokens.reduce((total, token) => total + (haystack.includes(token) ? 1 : 0), 0);
+    let score = tokens.reduce((total, token) => {
+      const occurrences = haystack.split(token).length - 1;
+      return total + Math.min(occurrences, 6);
+    }, 0);
     score += haystack.includes(question.toLowerCase()) ? 3 : 0;
     if (/\boffice\b/i.test(question) && /\b(?:hours|schedule|open)\b/i.test(question) &&
       /main office[\s\S]{0,240}(?:schedule|daily|a\.m\.|p\.m\.)/i.test(page.content)) {
       score += 8;
     }
     if (/\bcalendar\b/i.test(question) && /calendar/i.test(page.url)) score += 5;
+    if (/\b(?:schedule|class|period|time|monday|tuesday|wednesday|thursday|friday)\b/i.test(question) &&
+      /\/our-school\/schedule$/i.test(page.url)) {
+      score += 8;
+    }
     return { page, score };
   }).filter((result) => result.score > 0).sort((a, b) => b.score - a.score).slice(0, 5);
 }
 
 function bestSnippet(content: string, question: string): string {
+  const lines = content.split("\n").map((line) => line.trim()).filter((line) => line.length > 0);
   if (/\boffice\b/i.test(question) && /\b(?:hours|schedule|open)\b/i.test(question)) {
     const officeStart = content.lastIndexOf("Main Office");
-    const officeBlock = officeStart >= 0
-      ? content.slice(officeStart, officeStart + 220).match(/Main Office[\s\S]{0,220}/i)?.[0]
-      : undefined;
-    if (officeBlock) return officeBlock.trim();
+    const officeLines = officeStart >= 0
+      ? content.slice(officeStart).split("\n").filter(Boolean).slice(0, 6)
+      : [];
+    if (officeLines.length) {
+      const phone = officeLines.find((line) => /^\d{3}-\d{3}-\d{4}$/.test(line));
+      const daily = officeLines.find((line) => /^Daily\b/i.test(line));
+      const earlyRelease = officeLines.find((line) => /Early Release/i.test(line));
+      return `Main office hours: ${daily || "See the school schedule."}${earlyRelease ? ` ${earlyRelease}` : ""}${phone ? ` Main office: ${phone}.` : ""}`;
+    }
   }
   if (/\b(?:absence|absent|attendance)\b/i.test(question) && /\b(?:report|notify|clear|excuse)\b/i.test(question)) {
     const headingStart = content.lastIndexOf("Report an Absence");
-    if (headingStart >= 0) return content.slice(headingStart, headingStart + 620).trim();
+    if (headingStart >= 0) return content.slice(headingStart, headingStart + 500).trim();
+  }
+  if (/\bwednesday\b/i.test(question) && /\b(?:schedule|class|period|time)\b/i.test(question)) {
+    const start = lines.findIndex((line) => /^Wednesdays$/i.test(line));
+    if (start >= 0) {
+      const rows: string[] = [];
+      for (let index = start + 1; index < Math.min(lines.length, start + 18); index += 1) {
+        if (/^Thursdays$|^Modified Schedules$/i.test(lines[index])) break;
+        if (/^(?:Period \d|Break|Jag Time|[AB] LUNCH)/i.test(lines[index])) {
+          const value = lines[index + 1] && !/^(?:Period \d|Break|Jag Time|[AB] LUNCH)/i.test(lines[index + 1])
+            ? `${lines[index]}: ${lines[index + 1]}`
+            : lines[index];
+          rows.push(value);
+          if (rows.length >= 5) break;
+        }
+      }
+      if (rows.length) return `Wednesday schedule: ${rows.join("; ")}.`;
+    }
+  }
+  if (/\b(?:3rd|period\s*3)\b/i.test(question) && /\b(?:monday|mondays)\b/i.test(question)) {
+    const mondayStart = lines.findIndex((line) => /^Mondays \/ Tuesdays \/ Fridays$/i.test(line));
+    const periodStart = mondayStart >= 0
+      ? lines.findIndex((line, index) => index > mondayStart && /^Period 3$/i.test(line))
+      : -1;
+    const periodTime = periodStart >= 0 ? lines[periodStart + 1] : undefined;
+    if (periodTime) return `On Mondays, Tuesdays, and Fridays, Period 3 runs from ${periodTime}.`;
   }
   const tokens = questionTokens(question);
-  const sentences = content.split(/(?<=[.!?])\s+/).filter((sentence) => sentence.length > 20);
-  const ranked = sentences.map((sentence) => ({
-    sentence,
-    score: tokens.reduce((score, token) => score + (sentence.toLowerCase().includes(token) ? 1 : 0), 0),
-  })).sort((a, b) => b.score - a.score);
-  return (ranked.find((item) => item.score > 0)?.sentence || sentences[0] || content).slice(0, 500);
+  const candidates: Array<{ text: string; score: number }> = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    for (const width of [1, 2, 3]) {
+      const text = lines.slice(index, index + width).join(" ");
+      if (text.length < 20) continue;
+      const lower = text.toLowerCase();
+      const matchedTokens = tokens.filter((token) => lower.includes(token)).length;
+      const exactPhraseBonus = question.toLowerCase().split(/\s+/).filter((word) => word.length > 3 && lower.includes(word)).length;
+      const score = matchedTokens * 4 + exactPhraseBonus - Math.max(0, text.length - 360) / 360;
+      if (matchedTokens > 0) candidates.push({ text, score });
+    }
+  }
+  const best = candidates.sort((a, b) => b.score - a.score)[0];
+  return (best?.text || lines[0] || content).slice(0, 500);
 }
 
 export async function answerFromNorthCreekIndex(question: string): Promise<{
@@ -633,7 +697,7 @@ export async function answerFromNorthCreekIndex(question: string): Promise<{
     };
   }
   const targetedPage = /\boffice\b/i.test(question) && /\b(?:hours|schedule|open)\b/i.test(question)
-    ? pages.find((page) => page.url === NORTH_CREEK_ORIGIN && /Main Office\s+\d{3}-\d{3}-\d{4}[\s\S]{0,100}Schedule Daily/i.test(page.content))
+    ? pages.find((page) => page.url === NORTH_CREEK_ORIGIN && /Main Office[\s\S]{0,100}Schedule[\s\S]{0,100}Daily\s+\d/i.test(page.content))
     : /\b(?:absence|absent|attendance)\b/i.test(question) && /\b(?:report|notify|clear|excuse)\b/i.test(question)
       ? pages.find((page) => page.url.endsWith("/resources/attendance/report-an-absence"))
       : undefined;
