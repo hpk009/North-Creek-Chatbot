@@ -1,5 +1,7 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { eq } from "drizzle-orm";
+import { db, northCreekIndexTable } from "@workspace/db";
 import { logger } from "./logger";
 
 export const NORTH_CREEK_ORIGIN = "https://northcreek.nsd.org";
@@ -55,6 +57,7 @@ type RefreshOptions = {
 
 let activeRefresh: Promise<NorthCreekIndexStatus> | null = null;
 let schedulerStarted = false;
+const INDEX_ROW_ID = 1;
 
 const emptyStatus = (): NorthCreekIndexStatus => ({
   state: "idle",
@@ -80,7 +83,33 @@ async function readJson<T>(filePath: string, fallback: T): Promise<T> {
   }
 }
 
+async function readStoredIndex(): Promise<{
+  pages: NorthCreekPage[];
+  events: NorthCreekCalendarEvent[];
+  status: NorthCreekIndexStatus;
+} | null> {
+  try {
+    const rows = await db
+      .select()
+      .from(northCreekIndexTable)
+      .where(eq(northCreekIndexTable.id, INDEX_ROW_ID))
+      .limit(1);
+    const row = rows[0];
+    if (!row) return null;
+    return {
+      pages: row.pages as NorthCreekPage[],
+      events: row.events as NorthCreekCalendarEvent[],
+      status: row.status as NorthCreekIndexStatus,
+    };
+  } catch (error) {
+    logger.warn({ error }, "North Creek database index unavailable; using local compatibility files");
+    return null;
+  }
+}
+
 async function readPages(): Promise<NorthCreekPage[]> {
+  const stored = await readStoredIndex();
+  if (stored) return stored.pages;
   try {
     const text = await readFile(PAGES_PATH, "utf8");
     return text
@@ -93,10 +122,14 @@ async function readPages(): Promise<NorthCreekPage[]> {
 }
 
 async function readEvents(): Promise<NorthCreekCalendarEvent[]> {
+  const stored = await readStoredIndex();
+  if (stored) return stored.events;
   return readJson<NorthCreekCalendarEvent[]>(EVENTS_PATH, []);
 }
 
 export async function getNorthCreekIndexStatus(): Promise<NorthCreekIndexStatus> {
+  const stored = await readStoredIndex();
+  if (stored) return stored.status;
   const status = await readJson<NorthCreekIndexStatus>(STATUS_PATH, emptyStatus());
   if (status.state === "idle") {
     const [pages, events] = await Promise.all([readPages(), readEvents()]);
@@ -360,13 +393,35 @@ function parseCalendarHtml(html: string, sourceUrl: string): NorthCreekCalendarE
   return [...unique.values()];
 }
 
-async function writeIndex(pages: NorthCreekPage[], events: NorthCreekCalendarEvent[]): Promise<void> {
+async function writeIndex(
+  pages: NorthCreekPage[],
+  events: NorthCreekCalendarEvent[],
+  status: NorthCreekIndexStatus,
+): Promise<void> {
   await ensureDataDir();
   const pageJsonl = pages.map((page) => JSON.stringify(page)).join("\n") + (pages.length ? "\n" : "");
   await writeFile(`${PAGES_PATH}.tmp`, pageJsonl, "utf8");
   await writeFile(`${EVENTS_PATH}.tmp`, JSON.stringify(events, null, 2), "utf8");
   await rename(`${PAGES_PATH}.tmp`, PAGES_PATH);
   await rename(`${EVENTS_PATH}.tmp`, EVENTS_PATH);
+  await db
+    .insert(northCreekIndexTable)
+    .values({
+      id: INDEX_ROW_ID,
+      pages,
+      events,
+      status,
+      updatedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: northCreekIndexTable.id,
+      set: {
+        pages,
+        events,
+        status,
+        updatedAt: new Date(),
+      },
+    });
 }
 
 async function performRefresh({ maxPages = DEFAULT_MAX_PAGES }: RefreshOptions): Promise<NorthCreekIndexStatus> {
@@ -443,7 +498,6 @@ async function performRefresh({ maxPages = DEFAULT_MAX_PAGES }: RefreshOptions):
 
     const indexedPages = [...pages.values()];
     const indexedEvents = [...events.values()];
-    await writeIndex(indexedPages, indexedEvents);
     status = {
       ...status,
       state: "ready",
@@ -454,6 +508,7 @@ async function performRefresh({ maxPages = DEFAULT_MAX_PAGES }: RefreshOptions):
       feed_confirmed: feedConfirmed,
       error: null,
     };
+    await writeIndex(indexedPages, indexedEvents, status);
     await writeStatus(status);
     logger.info({ pageCount: indexedPages.length, eventCount: indexedEvents.length, feedUrl }, "North Creek index refresh completed");
     return status;
