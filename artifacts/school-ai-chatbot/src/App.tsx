@@ -1,19 +1,14 @@
-import { type ReactNode } from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ErrorBoundary } from '@/components/error-boundary';
-import { Toaster } from '@/components/ui/toaster';
-import { TooltipProvider } from '@/components/ui/tooltip';
-import { SchoolShell } from '@/components/school-shell';
-import About from '@/pages/about';
-import Chat from '@/pages/chat';
-import Home from '@/pages/home';
-import NotFound from '@/pages/not-found';
-import {
-  Route,
-  Switch,
-  useLocation,
-  Router as WouterRouter,
-} from 'wouter';
+import { type ReactNode } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ErrorBoundary } from "@/components/error-boundary";
+import { Toaster } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { SchoolShell } from "@/components/school-shell";
+import About from "@/pages/about";
+import Chat from "@/pages/chat";
+import Home from "@/pages/home";
+import NotFound from "@/pages/not-found";
+import { Route, Switch, useLocation, Router as WouterRouter } from "wouter";
 
 const queryClient = new QueryClient();
 
@@ -40,10 +35,14 @@ function RoutedErrorBoundary({ children }: { children: ReactNode }) {
 }
 
 function App() {
+  const base = import.meta.env.BASE_URL
+    ? import.meta.env.BASE_URL.replace(/\/$/, "")
+    : "";
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
+        <WouterRouter base={base}>
           <Router />
         </WouterRouter>
         <Toaster />

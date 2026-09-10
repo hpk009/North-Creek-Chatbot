@@ -25,3 +25,7 @@ channel = "stable-25_05"
 [userenv]
 
 [userenv.shared]
+
+[[ports]]
+localPort = 3000
+externalPort = 3000
