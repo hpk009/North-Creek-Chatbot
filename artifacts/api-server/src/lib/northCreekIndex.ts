@@ -161,12 +161,21 @@ function decodeHtml(value: string): string {
 }
 
 function extractContentHtml(html: string): string {
-  const main = html.match(/<main\b[^>]*\bid=["']fsPageContent["'][^>]*>([\s\S]*?)<\/main>/i)?.[1];
-  if (main) return main;
+  const byId = html.match(/<(\w+)\b[^>]*\bid=["']fsPageContent["'][^>]*>([\s\S]*?)<\/\1>/i)?.[2];
+  if (byId) return stripChrome(byId);
   const article = html.match(/<article\b[^>]*>([\s\S]*?)<\/article>/i)?.[1];
-  if (article) return article;
+  if (article) return stripChrome(article);
   const genericMain = html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i)?.[1];
-  return genericMain || html;
+  if (genericMain) return stripChrome(genericMain);
+  return stripChrome(html);
+}
+
+function stripChrome(html: string): string {
+  return html
+    .replace(/<nav\b[^>]*>[\s\S]*?<\/nav>/gi, " ")
+    .replace(/<header\b[^>]*>[\s\S]*?<\/header>/gi, " ")
+    .replace(/<footer\b[^>]*>[\s\S]*?<\/footer>/gi, " ")
+    .replace(/<(\w+)\b[^>]*\b(?:class|id)=["'][^"']*(?:nav|menu|breadcrumb|sidebar|megamenu|site-header|site-footer)[^"']*["'][^>]*>[\s\S]*?<\/\1>/gi, " ");
 }
 
 function htmlToText(html: string): string {
@@ -573,13 +582,13 @@ function isAcademicDishonestyQuestion(question: string): boolean {
 }
 
 function isNorthCreekScopeQuestion(question: string): boolean {
-  return /\b(north creek|school|student|family|staff|office|attendance|absen|class|course|academic|calendar|event|club|activity|athletic|counsel|lunch|bus|schedule|hours|contact|directory|principal|jaguar|period|time|monday|tuesday|wednesday|thursday|friday)\b/i.test(question);
+  return /\b(north creek|school|student|family|staff|office|attendance|absen|class|course|academic|calendar|event|club|activity|athletic|sport|team|coach|counsel|lunch|bus|transport|parking|schedule|hours|contact|directory|principal|jaguar|period|time|monday|tuesday|wednesday|thursday|friday|enroll|dress|uniform|health|nurse|safety|security|visit|teacher|grade|gpa|transcript|diploma|graduat|honors|elective|volunteer|ptsa|library|technology|chromebook|textbook|fee|form|policy|holiday|break|vacation|weather|closure|delay|emergency|registration|immuniz|physical|mascot|website|address|location|email|phone)\b/i.test(question);
 }
 
 function questionTokens(question: string): string[] {
   const normalized = question.toLowerCase().replace(/\b(\d+)(?:st|nd|rd|th)\b/g, "$1");
   return [...new Set(normalized.match(/\d+|[a-z]{3,}/g) || [])]
-    .filter((token) => !new Set(["what", "when", "where", "which", "does", "have", "with", "from", "about", "there", "this", "that", "north", "creek", "your", "are", "the", "for"]).has(token));
+    .filter((token) => !new Set(["what", "when", "where", "which", "how", "who", "why", "does", "have", "with", "from", "about", "there", "this", "that", "north", "creek", "your", "are", "the", "for", "can", "will", "need", "want", "get", "find"]).has(token));
 }
 
 function searchPages(pages: NorthCreekPage[], question: string): Array<{ page: NorthCreekPage; score: number }> {
