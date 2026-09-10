@@ -1,9 +1,9 @@
 {
-  "state": "running",
+  "state": "ready",
   "last_started_at": "2026-09-10T07:12:01.394Z",
-  "last_completed_at": null,
-  "page_count": 0,
-  "event_count": 0,
+  "last_completed_at": "2026-09-10T08:35:51.659Z",
+  "page_count": 250,
+  "event_count": 16,
   "feed_url": null,
   "feed_confirmed": false,
   "crawl_delay_seconds": 5,

@@ -3,6 +3,9 @@ import path from "node:path";
 import { eq } from "drizzle-orm";
 import { db, northCreekIndexTable } from "@workspace/db";
 import { logger } from "./logger";
+import Groq from "groq-sdk";
+
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 export const NORTH_CREEK_ORIGIN = "https://northcreek.nsd.org";
 const USER_AGENT =
@@ -429,7 +432,7 @@ async function confirmCalendarFeed(candidate: string): Promise<boolean> {
 
 function xmlValue(block: string, tag: string): string {
   const match = block.match(
-    new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${tag}>`, "i"),
+    new RegExp(`<${tag}(?:\\s[^>]?>)?([\\s\\S]*?)<\\/${tag}>`, "i"),
   );
   return htmlToText(match?.[1] || "");
 }
@@ -488,7 +491,7 @@ function parseCalendarHtml(
 ): NorthCreekCalendarEvent[] {
   const events: NorthCreekCalendarEvent[] = [];
   const titlePattern =
-    /<a\b[^>]*class=["'][^"']*fsCalendarEventTitle[^"']*["'][^>]*>([\s\S]*?)<\/a>/gi;
+    /<a\b[^>]*class=["'][^"']*fsCalendarEventTitle["'][^>]*>([\s\S]*?)<\/a>/gi;
   for (const match of html.matchAll(titlePattern)) {
     const startIndex = match.index ?? 0;
     const before = html.slice(Math.max(0, startIndex - 4000), startIndex);
@@ -502,7 +505,7 @@ function parseCalendarHtml(
     const after = html.slice(startIndex, startIndex + 2500);
     const nextInfoIndex = after
       .slice(match[0].length)
-      .search(/<div\b[^>]*class=["'][^"']*fsCalendarInfo[^"']*["']/i);
+      .search(/<div\b[^>]*class=["'][^"']*fsCalendarInfo["'][^>]*>/i);
     const eventFragment =
       nextInfoIndex >= 0
         ? after.slice(0, match[0].length + nextInfoIndex)
@@ -513,7 +516,7 @@ function parseCalendarHtml(
     const day = `${date[2]}-${String(Number(date[3]) + 1).padStart(2, "0")}-${date[1].padStart(2, "0")}`;
     const location = htmlToText(
       eventFragment.match(
-        /<div[^>]+class=["'][^"']*fsLocation[^"']*["'][^>]*>([\s\S]*?)<\/div>/i,
+        /<div[^>]+class=["'][^"']*fsLocation["'][^>]*>([\s\S]*?)<\/div>/i,
       )?.[1] || "",
     );
     events.push({
@@ -827,107 +830,6 @@ function searchPages(
     .slice(0, 5);
 }
 
-function bestSnippet(content: string, question: string): string {
-  const lines = content
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-  if (
-    /\boffice\b/i.test(question) &&
-    /\b(?:hours|schedule|open)\b/i.test(question)
-  ) {
-    const officeStart = content.lastIndexOf("Main Office");
-    const officeLines =
-      officeStart >= 0
-        ? content.slice(officeStart).split("\n").filter(Boolean).slice(0, 6)
-        : [];
-    if (officeLines.length) {
-      const phone = officeLines.find((line) =>
-        /^\d{3}-\d{3}-\d{4}$/.test(line),
-      );
-      const daily = officeLines.find((line) => /^Daily\b/i.test(line));
-      const earlyRelease = officeLines.find((line) =>
-        /Early Release/i.test(line),
-      );
-      return `Main office hours: ${daily || "See the school schedule."}${earlyRelease ? ` ${earlyRelease}` : ""}${phone ? ` Main office: ${phone}.` : ""}`;
-    }
-  }
-  if (
-    /\b(?:absence|absent|attendance)\b/i.test(question) &&
-    /\b(?:report|notify|clear|excuse)\b/i.test(question)
-  ) {
-    const headingStart = content.lastIndexOf("Report an Absence");
-    if (headingStart >= 0)
-      return content.slice(headingStart, headingStart + 500).trim();
-  }
-  if (
-    /\bwednesday\b/i.test(question) &&
-    /\b(?:schedule|class|period|time)\b/i.test(question)
-  ) {
-    const start = lines.findIndex((line) => /^Wednesdays$/i.test(line));
-    if (start >= 0) {
-      const rows: string[] = [];
-      for (
-        let index = start + 1;
-        index < Math.min(lines.length, start + 18);
-        index += 1
-      ) {
-        if (/^Thursdays$|^Modified Schedules$/i.test(lines[index])) break;
-        if (/^(?:Period \d|Break|Jag Time|[AB] LUNCH)/i.test(lines[index])) {
-          const value =
-            lines[index + 1] &&
-            !/^(?:Period \d|Break|Jag Time|[AB] LUNCH)/i.test(lines[index + 1])
-              ? `${lines[index]}: ${lines[index + 1]}`
-              : lines[index];
-          rows.push(value);
-          if (rows.length >= 5) break;
-        }
-      }
-      if (rows.length) return `Wednesday schedule: ${rows.join("; ")}.`;
-    }
-  }
-  if (
-    /\b(?:3rd|period\s*3)\b/i.test(question) &&
-    /\b(?:monday|mondays)\b/i.test(question)
-  ) {
-    const mondayStart = lines.findIndex((line) =>
-      /^Mondays \/ Tuesdays \/ Fridays$/i.test(line),
-    );
-    const periodStart =
-      mondayStart >= 0
-        ? lines.findIndex(
-            (line, index) => index > mondayStart && /^Period 3$/i.test(line),
-          )
-        : -1;
-    const periodTime = periodStart >= 0 ? lines[periodStart + 1] : undefined;
-    if (periodTime)
-      return `On Mondays, Tuesdays, and Fridays, Period 3 runs from ${periodTime}.`;
-  }
-  const tokens = questionTokens(question);
-  const candidates: Array<{ text: string; score: number }> = [];
-  for (let index = 0; index < lines.length; index += 1) {
-    for (const width of [1, 2, 3]) {
-      const text = lines.slice(index, index + width).join(" ");
-      if (text.length < 20) continue;
-      const lower = text.toLowerCase();
-      const matchedTokens = tokens.filter((token) =>
-        lower.includes(token),
-      ).length;
-      const exactPhraseBonus = question
-        .toLowerCase()
-        .split(/\s+/)
-        .filter((word) => word.length > 3 && lower.includes(word)).length;
-      const score =
-        matchedTokens * 4 +
-        exactPhraseBonus -
-        Math.max(0, text.length - 360) / 360;
-      if (matchedTokens > 0) candidates.push({ text, score });
-    }
-  }
-  const best = candidates.sort((a, b) => b.score - a.score)[0];
-  return (best?.text || lines[0] || content).slice(0, 500);
-}
-
 export async function answerFromNorthCreekIndex(question: string): Promise<{
   answer: string;
   supported: boolean;
@@ -952,8 +854,10 @@ export async function answerFromNorthCreekIndex(question: string): Promise<{
       sources: [],
     };
   }
+
   const pages = await readPages();
   const matches = searchPages(pages, question);
+
   if (!matches.length) {
     return {
       answer:
@@ -963,31 +867,47 @@ export async function answerFromNorthCreekIndex(question: string): Promise<{
       sources: [],
     };
   }
-  const targetedPage =
-    /\boffice\b/i.test(question) &&
-    /\b(?:hours|schedule|open)\b/i.test(question)
-      ? pages.find(
-          (page) =>
-            page.url === NORTH_CREEK_ORIGIN &&
-            /Main Office[\s\S]{0,100}Schedule[\s\S]{0,100}Daily\s+\d/i.test(
-              page.content,
-            ),
-        )
-      : /\b(?:absence|absent|attendance)\b/i.test(question) &&
-          /\b(?:report|notify|clear|excuse)\b/i.test(question)
-        ? pages.find((page) =>
-            page.url.endsWith("/resources/attendance/report-an-absence"),
-          )
-        : undefined;
-  const primary = targetedPage || matches[0].page;
-  const sources = [
-    ...new Set([primary.url, ...matches.map(({ page }) => page.url)]),
-  ].slice(0, 3);
-  return {
-    answer: `${bestSnippet(primary.content, question)}\n\nThis information comes from the North Creek High School website.`,
-    supported: true,
-    sources,
-  };
+
+  const contextText = matches
+    .map((m) => `Title: ${m.page.title}\nContent: ${m.page.content}`)
+    .join("\n\n---\n\n");
+
+  const sources = [...new Set(matches.map(({ page }) => page.url))].slice(0, 3);
+
+  try {
+    const completion = await groq.chat.completions.create({
+      model: "llama-3.3-70b-versatile",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are 'The Bell', the official AI assistant for North Creek High School. Answer the user's question accurately and concisely using ONLY the provided website context below. If the answer cannot be found in the context, state that you couldn't find it on the official website.",
+        },
+        {
+          role: "user",
+          content: `Context from North Creek website:\n${contextText}\n\nUser Question: ${question}`,
+        },
+      ],
+    });
+
+    const answer =
+      completion.choices[0]?.message?.content ||
+      "I couldn't generate a response.";
+
+    return {
+      answer,
+      supported: true,
+      sources,
+    };
+  } catch (error) {
+    logger.error({ error }, "Groq chat completion failed");
+    return {
+      answer:
+        "Sorry, I ran into an error generating an AI response using your API key.",
+      supported: false,
+      sources,
+    };
+  }
 }
 
 export async function getNorthCreekIndexSummary(): Promise<{
