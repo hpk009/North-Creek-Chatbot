@@ -5,8 +5,6 @@ import { db, northCreekIndexTable } from "@workspace/db";
 import { logger } from "./logger";
 import Groq from "groq-sdk";
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-
 export const NORTH_CREEK_ORIGIN = "https://northcreek.nsd.org";
 const USER_AGENT =
   "TheBellNorthCreekIndexer/1.0 (+North Creek school information assistant)";
@@ -875,6 +873,9 @@ export async function answerFromNorthCreekIndex(question: string): Promise<{
   const sources = [...new Set(matches.map(({ page }) => page.url))].slice(0, 3);
 
   try {
+    // Initialized at runtime so it safely reads process.env.GROQ_API_KEY when invoked
+    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
     const completion = await groq.chat.completions.create({
       model: "llama-3.3-70b-versatile",
       messages: [
