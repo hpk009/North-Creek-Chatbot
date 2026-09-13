@@ -29,6 +29,9 @@ if (!basePath) {
 
 export default defineConfig({
   base: basePath,
+  define: {
+    'process.env.GROQ_API_KEY': JSON.stringify(process.env.GROQ_API_KEY),
+  },
   plugins: [
     mockupPreviewPlugin(),
     react(),
