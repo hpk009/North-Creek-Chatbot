@@ -29,7 +29,7 @@ export function SchoolShell({ children }: { children: ReactNode }) {
   ];
 
   return (
-    <div className="min-h-[100dvh] bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
+    <div className="min-h-[100dvh] flex flex-col bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
       <header className="sticky top-0 z-40 border-b border-[hsl(var(--border)/.7)] bg-[hsl(var(--background)/.88)] backdrop-blur-xl">
         <div className="mx-auto flex h-[76px] max-w-7xl items-center justify-between px-5 sm:px-8 lg:px-12">
           <Link href="/" className="transition-transform hover:-translate-y-0.5" data-testid="link-brand">
@@ -71,7 +71,7 @@ export function SchoolShell({ children }: { children: ReactNode }) {
           </div>
         )}
       </header>
-      <main>{children}</main>
+      <main className="flex-1 flex flex-col">{children}</main>
       <footer className="border-t border-[hsl(var(--border))] bg-[hsl(var(--muted)/.35)]">
         <div className="mx-auto flex max-w-7xl flex-col gap-5 px-5 py-8 text-sm text-[hsl(var(--muted-foreground))] sm:px-8 md:flex-row md:items-center md:justify-between lg:px-12">
           <div className="flex items-center gap-3">
