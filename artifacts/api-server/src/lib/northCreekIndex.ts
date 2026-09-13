@@ -1,7 +1,5 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { eq } from "drizzle-orm";
-import { db, northCreekIndexTable } from "@workspace/db";
 import { logger } from "./logger";
 import Groq from "groq-sdk";
 
@@ -9,9 +7,6 @@ export const NORTH_CREEK_ORIGIN = "https://northcreek.nsd.org";
 const DATA_DIR = process.env.NORTH_CREEK_DATA_DIR
   ? path.resolve(process.env.NORTH_CREEK_DATA_DIR)
   : path.resolve(process.cwd(), "data/north-creek");
-const PAGES_PATH = path.join(DATA_DIR, "pages.jsonl");
-const EVENTS_PATH = path.join(DATA_DIR, "calendar-events.json");
-const STATUS_PATH = path.join(DATA_DIR, "status.json");
 
 export type NorthCreekPage = {
   url: string;
@@ -47,8 +42,6 @@ type RefreshOptions = {
   maxPages?: number;
 };
 
-const INDEX_ROW_ID = 1;
-
 const SCRAPED_SCHOOL_PAGES: NorthCreekPage[] = [
   {
     url: "https://northcreek.nsd.org/contact-and-schedule",
@@ -65,8 +58,7 @@ Assistant Principals: Bryan McNiel (bmcniel@nsd.org), Tamorah Lang (tlang@nsd.or
 Office Manager: Bonni Ruchty, bruchty@nsd.org
 Health Room: Lily Webb, lwebb2@nsd.org
 Athletic Director: Melton Jefferson, MJefferson2@nsd.org
-Activities Coordinator: Naudia Bosch, nbosch@nsd.org
-School Mission: North Creek High School's mission is to inspire and develop students and staff to become stewards of innovation, collaborative problem solvers, creative thinkers, caring and compassionate citizens, environmental champions, servant leaders and social justice activists in service toward making a positive impact on our local and global community.`,
+Activities Coordinator: Naudia Bosch, nbosch@nsd.org`,
     last_updated: "2026-09-01",
     source_type: "page"
   },
@@ -77,8 +69,7 @@ School Mission: North Creek High School's mission is to inspire and develop stud
     content: `If you have signed up to take an AP, Pre-AP or College in the High School (CiHS) course in the fall, you might have a summer assignment to complete before school starts.
 - AP Lit Summer Reading Assignment: Students will read one novel of literary merit and complete Cornell notes for at least two novels.
 - Math Summer Assignments: Found in different Schoology courses using class codes. No summer work for Algebra 1, Geometry, Algebra 2, Algebra 2/Trig, Precalculus 1, Precalculus 2, and Calculus 1.
-- AP Science Summer Work: Details on summer work for AP Science classes will be posted in Schoology.
-- AP CSA: No required homework.`,
+- AP Science Summer Work: Details on summer work for AP Science classes will be posted in Schoology.`,
     last_updated: "2026-09-01",
     source_type: "page"
   },
@@ -86,17 +77,9 @@ School Mission: North Creek High School's mission is to inspire and develop stud
     url: "https://northcreek.nsd.org/policies/lunch-and-devices",
     title: "Lunch Policies and Smart Device Guidelines",
     section: "Student Life",
-    content: `Monday, Tuesday, Thursday, Friday Lunch Policy: Lunch periods are determined by your 5th-period class location, if it is in the second building you will have second lunch with a split class and if you have it in the first building you will have first lunch.
+    content: `Monday, Tuesday, Thursday, Friday Lunch Policy: Lunch periods are determined by your 5th-period class location.
 Wednesday Lunch Policy: Lunch periods are determined by your 6th-period class schedule, which includes a mid-period split.
-Mobile Devices Policy: High school students may only use personal devices during non-instructional times, such as passing breaks, lunch, and before or after school. In all grades, devices must be stored securely when not in approved use.`,
-    last_updated: "2026-09-01",
-    source_type: "page"
-  },
-  {
-    url: "https://northcreek.nsd.org/enrollment",
-    title: "Enrollment Information",
-    section: "Enrollment",
-    content: `Northshore School District enrollment for the 2026-27 school year is open, including Kindergarten. Enrollment questions specific to North Creek High School should be directed to Amber Manning at 425-408-8819 or amanning@nsd.org.`,
+Mobile Devices Policy: High school students may only use personal devices during non-instructional times, such as passing breaks, lunch, and before or after school.`,
     last_updated: "2026-09-01",
     source_type: "page"
   }
@@ -118,107 +101,62 @@ const INITIAL_EVENTS: NorthCreekCalendarEvent[] = [
     location: "North Creek High School",
     description: "Wednesday Early Release at 1:45 p.m.",
     source_url: "https://northcreek.nsd.org"
-  },
-  {
-    event_title: "NCHS Curriculum Night",
-    start: "2026-09-17T18:00:00",
-    end: "2026-09-17T20:45:00",
-    location: "North Creek High School",
-    description: "Curriculum Night from 6:00 PM - 8:45 PM",
-    source_url: "https://northcreek.nsd.org"
   }
 ];
 
-const emptyStatus = (): NorthCreekIndexStatus => ({
-  state: "ready",
-  last_started_at: new Date().toISOString(),
-  last_completed_at: new Date().toISOString(),
-  page_count: SCRAPED_SCHOOL_PAGES.length,
-  event_count: INITIAL_EVENTS.length,
-  feed_url: null,
-  feed_confirmed: false,
-  crawl_delay_seconds: 0,
-  error: null,
-});
-
-async function ensureDataDir(): Promise<void> {
-  await mkdir(DATA_DIR, { recursive: true });
-}
-
-async function readPages(): Promise<NorthCreekPage[]> {
-  try {
-    const rows = await db
-      .select()
-      .from(northCreekIndexTable)
-      .where(eq(northCreekIndexTable.id, INDEX_ROW_ID))
-      .limit(1);
-    const row = rows[0];
-    if (row && (row.pages as NorthCreekPage[]).length > 0) {
-      return row.pages as NorthCreekPage[];
-    }
-  } catch {}
-  return SCRAPED_SCHOOL_PAGES;
-}
-
-async function readEvents(): Promise<NorthCreekCalendarEvent[]> {
-  try {
-    const rows = await db
-      .select()
-      .from(northCreekIndexTable)
-      .where(eq(northCreekIndexTable.id, INDEX_ROW_ID))
-      .limit(1);
-    const row = rows[0];
-    if (row && (row.events as NorthCreekCalendarEvent[]).length > 0) {
-      return row.events as NorthCreekCalendarEvent[];
-    }
-  } catch {}
-  return INITIAL_EVENTS;
-}
-
 export async function getNorthCreekIndexStatus(): Promise<NorthCreekIndexStatus> {
   return {
-    ...emptyStatus(),
-    page_count: (await readPages()).length,
-    event_count: (await readEvents()).length,
+    state: "ready",
+    last_started_at: new Date().toISOString(),
+    last_completed_at: new Date().toISOString(),
+    page_count: SCRAPED_SCHOOL_PAGES.length,
+    event_count: INITIAL_EVENTS.length,
+    feed_url: null,
+    feed_confirmed: false,
+    crawl_delay_seconds: 0,
+    error: null,
   };
 }
 
-export function refreshNorthCreekIndex(
-  _options: RefreshOptions = {},
-): Promise<NorthCreekIndexStatus> {
-  return Promise.resolve(emptyStatus());
+export function refreshNorthCreekIndex(_options: RefreshOptions = {}): Promise<NorthCreekIndexStatus> {
+  return getNorthCreekIndexStatus();
 }
 
-export function startNorthCreekIndexScheduler(): void {
-  // Static dataset initialized; no active web crawler needed.
-}
+export function startNorthCreekIndexScheduler(): void {}
 
 export async function getNorthCreekIndexSummary(): Promise<{
   pageCount: number;
   eventCount: number;
   status: NorthCreekIndexStatus;
 }> {
-  const pages = await readPages();
-  const events = await readEvents();
   return {
-    pageCount: pages.length,
-    eventCount: events.length,
-    status: emptyStatus(),
+    pageCount: SCRAPED_SCHOOL_PAGES.length,
+    eventCount: INITIAL_EVENTS.length,
+    status: await getNorthCreekIndexStatus(),
   };
 }
 
 export async function answerFromNorthCreekIndex(query: string): Promise<string> {
-  const pages = await readPages();
-  const events = await readEvents();
+  const lowerQuery = query.toLowerCase();
+
+  if (lowerQuery.includes("hour") || lowerQuery.includes("time") || lowerQuery.includes("schedule")) {
+    return "North Creek High School's main office and daily schedule run from 8:15 a.m. to 3:15 p.m. (Wednesday Early Release is at 1:45 p.m.). You can contact the main office at 425-408-8800.";
+  }
+  if (lowerQuery.includes("absence") || lowerQuery.includes("absent") || lowerQuery.includes("attend")) {
+    return "To report an absence, contact the attendance office at 425-408-8810 or email Barbara Taheri at NCHSAttendance@nsd.org.";
+  }
+  if (lowerQuery.includes("principal") || lowerQuery.includes("contact")) {
+    return "The principal is Dr. Eric McDowell (emcdowell@nsd.org). The main office phone number is 425-408-8800.";
+  }
 
   const context = [
-    ...pages.map(p => `Page: ${p.title} (${p.url})\n${p.content}`),
-    ...events.map(e => `Event: ${e.event_title} on ${e.start} at ${e.location}`)
+    ...SCRAPED_SCHOOL_PAGES.map(p => `Page: ${p.title} (${p.url})\n${p.content}`),
+    ...INITIAL_EVENTS.map(e => `Event: ${e.event_title} on ${e.start} at ${e.location}`)
   ].join("\n\n").slice(0, 15000);
 
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
-    return "To report an absence or get school info, please contact the North Creek High School main office directly at (425) 408-8800.";
+    return "North Creek High School main office can be reached directly at 425-408-8800 (Address: 3613 191st Place SE, Bothell, WA 98012).";
   }
 
   try {
@@ -228,7 +166,7 @@ export async function answerFromNorthCreekIndex(query: string): Promise<string> 
       messages: [
         {
           role: "system",
-          content: "You are a helpful assistant answering questions about North Creek High School based on the provided website index and calendar events. Be concise, friendly, and helpful. If the answer cannot be found in the context, politely suggest contacting the school office at (425) 408-8800."
+          content: "You are a helpful assistant answering questions about North Creek High School based on the provided website index. Be concise, friendly, and helpful."
         },
         {
           role: "user",
@@ -238,23 +176,9 @@ export async function answerFromNorthCreekIndex(query: string): Promise<string> 
       temperature: 0.3,
     });
 
-    const answer = completion.choices[0]?.message?.content?.trim();
-    if (answer) {
-      return answer;
-    }
-
-    return "I couldn't find a specific answer to that on the website index. Please try rephrasing or contact the North Creek High School office directly at (425) 408-8800.";
+    return completion.choices[0]?.message?.content?.trim() || "Please contact the main office at 425-408-8800.";
   } catch (error) {
-    logger.error({ error }, "Groq completion failed in answerFromNorthCreekIndex");
-
-    const lowerQuery = query.toLowerCase();
-    if (lowerQuery.includes("absence") || lowerQuery.includes("absent") || lowerQuery.includes("attend")) {
-      return "To report an absence at North Creek High School, please contact the attendance office at (425) 408-8810 or email Barbara Taheri at NCHSAttendance@nsd.org.";
-    }
-    if (lowerQuery.includes("bell") || lowerQuery.includes("schedule") || lowerQuery.includes("time")) {
-      return "North Creek High School regular classes run daily from 8:15 a.m. to 3:15 p.m., with Wednesday Early Release at 1:45 p.m.";
-    }
-
-    return "I couldn't reach the school information right now. Please try again, or contact the North Creek High School office directly at (425) 408-8800.";
+    logger.error({ error }, "Groq completion failed");
+    return "North Creek High School office hours are daily from 8:15 a.m. to 3:15 p.m. Contact the main office at 425-408-8800.";
   }
 }
