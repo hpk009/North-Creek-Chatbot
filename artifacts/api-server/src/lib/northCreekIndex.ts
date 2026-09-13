@@ -137,48 +137,38 @@ export async function getNorthCreekIndexSummary(): Promise<{
 }
 
 export async function answerFromNorthCreekIndex(query: string): Promise<string> {
-  const lowerQuery = query.toLowerCase();
-
-  if (lowerQuery.includes("hour") || lowerQuery.includes("time") || lowerQuery.includes("schedule")) {
-    return "North Creek High School's main office and daily schedule run from 8:15 a.m. to 3:15 p.m. (Wednesday Early Release is at 1:45 p.m.). You can contact the main office at 425-408-8800.";
-  }
-  if (lowerQuery.includes("absence") || lowerQuery.includes("absent") || lowerQuery.includes("attend")) {
-    return "To report an absence, contact the attendance office at 425-408-8810 or email Barbara Taheri at NCHSAttendance@nsd.org.";
-  }
-  if (lowerQuery.includes("principal") || lowerQuery.includes("contact")) {
-    return "The principal is Dr. Eric McDowell (emcdowell@nsd.org). The main office phone number is 425-408-8800.";
-  }
-
-  const context = [
-    ...SCRAPED_SCHOOL_PAGES.map(p => `Page: ${p.title} (${p.url})\n${p.content}`),
-    ...INITIAL_EVENTS.map(e => `Event: ${e.event_title} on ${e.start} at ${e.location}`)
-  ].join("\n\n").slice(0, 15000);
-
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) {
-    return "North Creek High School main office can be reached directly at 425-408-8800 (Address: 3613 191st Place SE, Bothell, WA 98012).";
-  }
-
   try {
+    const lowerQuery = (query || "").toLowerCase();
+
+    if (lowerQuery.includes("hour") || lowerQuery.includes("time") || lowerQuery.includes("schedule")) {
+      return "North Creek High School's main office and daily schedule run from 8:15 a.m. to 3:15 p.m. (Wednesday Early Release is at 1:45 p.m.). You can contact the main office at 425-408-8800.";
+    }
+    if (lowerQuery.includes("absence") || lowerQuery.includes("absent") || lowerQuery.includes("attend")) {
+      return "To report an absence, contact the attendance office at 425-408-8810 or email Barbara Taheri at NCHSAttendance@nsd.org.";
+    }
+    if (lowerQuery.includes("principal") || lowerQuery.includes("contact")) {
+      return "The principal is Dr. Eric McDowell (emcdowell@nsd.org). The main office phone number is 425-408-8800.";
+    }
+
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+      return "North Creek High School main office can be reached directly at 425-408-8800 (Address: 3613 191st Place SE, Bothell, WA 98012).";
+    }
+
+    const context = SCRAPED_SCHOOL_PAGES.map(p => `${p.title}: ${p.content}`).join("\n\n");
     const groq = new Groq({ apiKey });
     const completion = await groq.chat.completions.create({
       model: "llama-3.1-8b-instant",
       messages: [
-        {
-          role: "system",
-          content: "You are a helpful assistant answering questions about North Creek High School based on the provided website index. Be concise, friendly, and helpful."
-        },
-        {
-          role: "user",
-          content: `Context:\n${context}\n\nQuestion: ${query}`
-        }
+        { role: "system", content: "You are a helpful assistant for North Creek High School. Be concise and friendly." },
+        { role: "user", content: `Context:\n${context}\n\nQuestion: ${query}` }
       ],
       temperature: 0.3,
     });
 
-    return completion.choices[0]?.message?.content?.trim() || "Please contact the main office at 425-408-8800.";
+    return completion.choices[0]?.message?.content?.trim() || "North Creek High School main office can be reached at 425-408-8800.";
   } catch (error) {
     logger.error({ error }, "Groq completion failed");
-    return "North Creek High School office hours are daily from 8:15 a.m. to 3:15 p.m. Contact the main office at 425-408-8800.";
+    return "North Creek High School office hours are daily from 8:15 a.m. to 3:15 p.m. Contact the main office directly at 425-408-8800.";
   }
 }
