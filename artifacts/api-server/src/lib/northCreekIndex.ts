@@ -823,7 +823,7 @@ export async function answerFromNorthCreekIndex(query: string): Promise<string> 
       messages: [
         {
           role: "system",
-          content: "You are a helpful assistant answering questions about North Creek High School based on the provided website index and calendar events. Be concise, friendly, and helpful."
+          content: "You are a helpful assistant answering questions about North Creek High School based on the provided website index and calendar events. Be concise, friendly, and helpful. If the answer cannot be found in the context, politely suggest contacting the school office."
         },
         {
           role: "user",
@@ -833,9 +833,25 @@ export async function answerFromNorthCreekIndex(query: string): Promise<string> 
       temperature: 0.3,
     });
 
-    return completion.choices[0]?.message?.content || "I couldn't find an answer to that question. Please contact the school office directly.";
+    const answer = completion.choices[0]?.message?.content?.trim();
+    if (answer) {
+      return answer;
+    }
+
+    // Fallback if model returns empty content
+    return "I couldn't find a specific answer to that on the website index. Please try rephrasing or contact the North Creek High School office directly at (425) 408-6800.";
   } catch (error) {
     logger.error({ error }, "Groq completion failed in answerFromNorthCreekIndex");
-    return "I couldn't reach the school information right now. Please try again, or contact the North Creek High School office directly.";
+
+    // Simple keyword fallback so the user still gets help even if Groq fails
+    const lowerQuery = query.toLowerCase();
+    if (lowerQuery.includes("absence") || lowerQuery.includes("absent") || lowerQuery.includes("attend")) {
+      return "To report an absence at North Creek High School, please contact the attendance office or call the attendance line with the student's name, ID, date, and reason.";
+    }
+    if (lowerQuery.includes("bell") || lowerQuery.includes("schedule") || lowerQuery.includes("time")) {
+      return "North Creek High School regular classes typically run from 7:40 AM to 2:10 PM.";
+    }
+
+    return "I couldn't reach the school information right now. Please try again, or contact the North Creek High School office directly at (425) 408-6800.";
   }
 }
