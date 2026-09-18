@@ -107,7 +107,9 @@ export async function getNorthCreekIndexStatus(): Promise<NorthCreekIndexStatus>
   };
 }
 
-export function refreshNorthCreekIndex(_options: RefreshOptions = {}): Promise<NorthCreekIndexStatus> {
+export function refreshNorthCreekIndex(
+  _options: RefreshOptions = {},
+): Promise<NorthCreekIndexStatus> {
   return getNorthCreekIndexStatus();
 }
 
@@ -143,8 +145,20 @@ export async function answerFromNorthCreekIndex(question: string): Promise<{
   const lower = (question || "").toLowerCase().trim();
 
   // 1. Greetings
-  const greetings = ["hi", "hello", "hey", "sup", "yo", "good morning", "good afternoon", "good evening"];
-  if (greetings.includes(lower) || greetings.some((g) => lower.startsWith(g + " "))) {
+  const greetings = [
+    "hi",
+    "hello",
+    "hey",
+    "sup",
+    "yo",
+    "good morning",
+    "good afternoon",
+    "good evening",
+  ];
+  if (
+    greetings.includes(lower) ||
+    greetings.some((g) => lower.startsWith(g + " "))
+  ) {
     return {
       answer:
         "Hi! I’m **The Bell**, your North Creek High School guide.\n\nI can only answer questions using official North Creek information (schedules, contacts, counselors, calendar, etc.). How can I help?",
@@ -174,10 +188,37 @@ export async function answerFromNorthCreekIndex(question: string): Promise<{
 
   // 3. Soft scope check
   const schoolKeywords = [
-    "school", "north creek", "nchs", "schedule", "bell", "counselor", "principal",
-    "attendance", "absence", "holiday", "break", "contact", "office", "teacher",
-    "class", "grade", "enrollment", "calendar", "event", "sport", "club", "asb",
-    "lunch", "bus", "phone", "email", "address", "hours", "time", "staff", "period",
+    "school",
+    "north creek",
+    "nchs",
+    "schedule",
+    "bell",
+    "counselor",
+    "principal",
+    "attendance",
+    "absence",
+    "holiday",
+    "break",
+    "contact",
+    "office",
+    "teacher",
+    "class",
+    "grade",
+    "enrollment",
+    "calendar",
+    "event",
+    "sport",
+    "club",
+    "asb",
+    "lunch",
+    "bus",
+    "phone",
+    "email",
+    "address",
+    "hours",
+    "time",
+    "staff",
+    "period",
   ];
   const hasSchoolKeyword = schoolKeywords.some((kw) => lower.includes(kw));
   if (!hasSchoolKeyword && lower.length > 15) {
@@ -204,7 +245,10 @@ export async function answerFromNorthCreekIndex(question: string): Promise<{
       { name: "Thanksgiving Break", date: new Date("2026-11-26") },
       { name: "Winter Break", date: new Date("2026-12-21") },
       { name: "Martin Luther King Jr. Day", date: new Date("2027-01-18") },
-      { name: "Presidents' Day / Mid-Winter Break", date: new Date("2027-02-15") },
+      {
+        name: "Presidents' Day / Mid-Winter Break",
+        date: new Date("2027-02-15"),
+      },
       { name: "Spring Break", date: new Date("2027-04-05") },
       { name: "Memorial Day", date: new Date("2027-05-31") },
       { name: "Last Day of School", date: new Date("2027-06-16") },
@@ -216,7 +260,8 @@ export async function answerFromNorthCreekIndex(question: string): Promise<{
 
     if (upcoming.length === 0) {
       return {
-        answer: "There are no more major holidays left in the 2026-27 school year.",
+        answer:
+          "There are no more major holidays left in the 2026-27 school year.",
         supported: true,
         sources: ["https://www.nsd.org/calendar"],
       };
@@ -279,8 +324,14 @@ Just tell me which lunch you have (**A Lunch** or **B Lunch**) and I can show yo
     const day = today.getDay(); // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri
     const dayName = today.toLocaleDateString("en-US", { weekday: "long" });
 
-    const hasALunch = lower.includes("a lunch") || lower.includes("1st lunch") || lower.includes("first lunch");
-    const hasBLunch = lower.includes("b lunch") || lower.includes("2nd lunch") || lower.includes("second lunch");
+    const hasALunch =
+      lower.includes("a lunch") ||
+      lower.includes("1st lunch") ||
+      lower.includes("first lunch");
+    const hasBLunch =
+      lower.includes("b lunch") ||
+      lower.includes("2nd lunch") ||
+      lower.includes("second lunch");
 
     // ===== WEDNESDAY =====
     if (day === 3) {
@@ -469,17 +520,55 @@ Email: emcdowell@nsd.org`,
     lower.includes("my counselor") ||
     lower.includes("who is my counselor")
   ) {
-    const words = lower.replace(/[^a-z\s]/g, "").split(/\s+/).filter(Boolean);
+    const words = lower
+      .replace(/[^a-z\s]/g, "")
+      .split(/\s+/)
+      .filter(Boolean);
     const lastName = words[words.length - 1] || "";
 
     const counselors = [
-      { range: "A-Car", name: "Kayla Francisco-Christman", phone: "425-408-8845", email: "kfrancisco@nsd.org" },
-      { range: "Cas-Gon", name: "Tiffany Frane", phone: "425-408-8823", email: "tfrane@nsd.org" },
-      { range: "Goo-Kim", name: "Jeff Dennis", phone: "425-408-8820", email: "jdennis@nsd.org" },
-      { range: "Kin-Mem", name: "Yuchen Zhang", phone: "425-408-8821", email: "yzhang@nsd.org" },
-      { range: "Men-Pun", name: "Kate Kanin", phone: "425-408-8822", email: "kkanin@nsd.org" },
-      { range: "Puo-Spe", name: "Dawn LaMance", phone: "425-408-8846", email: "dlamance@nsd.org" },
-      { range: "Spf-Z", name: "Charlene Beam", phone: "425-408-8847", email: "cbeam@nsd.org" },
+      {
+        range: "A-Car",
+        name: "Kayla Francisco-Christman",
+        phone: "425-408-8845",
+        email: "kfrancisco@nsd.org",
+      },
+      {
+        range: "Cas-Gon",
+        name: "Tiffany Frane",
+        phone: "425-408-8823",
+        email: "tfrane@nsd.org",
+      },
+      {
+        range: "Goo-Kim",
+        name: "Jeff Dennis",
+        phone: "425-408-8820",
+        email: "jdennis@nsd.org",
+      },
+      {
+        range: "Kin-Mem",
+        name: "Yuchen Zhang",
+        phone: "425-408-8821",
+        email: "yzhang@nsd.org",
+      },
+      {
+        range: "Men-Pun",
+        name: "Kate Kanin",
+        phone: "425-408-8822",
+        email: "kkanin@nsd.org",
+      },
+      {
+        range: "Puo-Spe",
+        name: "Dawn LaMance",
+        phone: "425-408-8846",
+        email: "dlamance@nsd.org",
+      },
+      {
+        range: "Spf-Z",
+        name: "Charlene Beam",
+        phone: "425-408-8847",
+        email: "cbeam@nsd.org",
+      },
     ];
 
     let matched = null;
@@ -581,9 +670,16 @@ Dr. Eric McDowell – emcdowell@nsd.org
       .sort((a, b) => b.score - a.score)
       .slice(0, 6);
 
-    const contextPages = scored.length > 0 ? scored.map((s) => s.page) : SCRAPED_SCHOOL_PAGES.slice(0, 4);
+    const contextPages =
+      scored.length > 0
+        ? scored.map((s) => s.page)
+        : SCRAPED_SCHOOL_PAGES.slice(0, 4);
+
     const context = contextPages
-      .map((p) => `### ${p.title}\nSource: ${getSourceUrl(p)}\n${p.content.slice(0, 1800)}`)
+      .map(
+        (p) =>
+          `### ${p.title}\nSource: ${getSourceUrl(p)}\n${p.content.slice(0, 1800)}`,
+      )
       .join("\n\n---\n\n");
 
     const groq = new Groq({ apiKey });
@@ -613,7 +709,9 @@ STRICT RULES:
       completion.choices[0]?.message?.content?.trim() ||
       "I couldn’t find a clear answer in the school records. Please try rephrasing or call the main office at 425-408-8800.";
 
-    const sources = [...new Set(contextPages.map((p) => getSourceUrl(p)))].slice(0, 3);
+    const sources = [
+      ...new Set(contextPages.map((p) => getSourceUrl(p))),
+    ].slice(0, 3);
 
     return { answer, supported: true, sources };
   } catch (error) {
